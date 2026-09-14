@@ -17,9 +17,12 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:vertal/core/presentation/pages/profile.dart';
 import 'package:vertal/core/presentation/widgets/bottom_nav.dart';
+import 'package:vertal/core/presentation/pages/task_widget.dart';
 
 class MainWrapperPage extends StatefulWidget {
+  final screens = const [ProfilePreview(), TaskWidget()];
   const MainWrapperPage({super.key});
 
   @override
@@ -33,7 +36,7 @@ class _MainWrapperPage extends State<MainWrapperPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: const Placeholder(),
+      body: widget.screens[_currentIndex],
       appBar: AppBar(
         title: Text('Vertal'),
         titleTextStyle: TextStyle(

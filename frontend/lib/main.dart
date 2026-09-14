@@ -16,7 +16,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:vertal/core/presentation/pages/main_wrapper_page.dart';
+import 'package:vertal/core/presentation/pages/main_wrapper.dart';
 
 void main() async {
   // Ensure widgets are initialized
@@ -40,7 +40,7 @@ class MyApp extends StatelessWidget {
     );
     return MaterialApp(
       title: 'Vertal',
-      home: MainWrapperPage(),
+      home: const MainWrapperPage(),
     );
   }
 }
