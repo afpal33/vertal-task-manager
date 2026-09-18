@@ -15,32 +15,59 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:vertal/core/presentation/pages/main_wrapper.dart';
+import 'package:vertal/core/app_controller.dart';
+import 'package:vertal/pages/auth/auth_flow_page.dart';
+import 'package:vertal/pages/workspace/workspace_page.dart';
+import 'package:vertal/presentation/theme/app_theme.dart';
 
-void main() async {
-  // Ensure widgets are initialized
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // To-do: Initialize sqlite3
-
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
 
-  // Global BLoCs should live here
+class _MyAppState extends State<MyApp> {
+  late final AppController controller;
+  late final Future<void> initialization;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = AppController();
+    initialization = controller.initialize();
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    SystemChrome.setSystemUIOverlayStyle(
-      SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-      ),
-    );
     return MaterialApp(
       title: 'Vertal',
-      home: const MainWrapperPage(),
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light(),
+      home: FutureBuilder<void>(
+        future: initialization,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
+          return AnimatedBuilder(
+            animation: controller,
+            builder: (context, _) => controller.stage == AppStage.ready
+                ? WorkspacePage(controller: controller)
+                : AuthFlowPage(controller: controller),
+          );
+        },
+      ),
     );
   }
 }

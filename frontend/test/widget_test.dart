@@ -1,64 +1,86 @@
-/*
- * Copyright 2026 Fabrizio.root
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:vertal/main.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:vertal/core/network/api_client.dart';
+import 'package:vertal/core/models/models.dart';
+import 'package:vertal/core/security/credential_service.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (
-    WidgetTester tester,
-  ) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(
-      const MyApp(),
+  test('genera una credencial local con claves distintas', () async {
+    final credential = await CredentialService().generate();
+
+    expect(credential.privateKey, contains('PRIVATE KEY'));
+    expect(credential.publicKey, contains('PUBLIC KEY'));
+    expect(credential.privateKey, isNot(credential.publicKey));
+  });
+
+  test('interpreta roles y estados del contrato del backend', () {
+    final user = User.fromJson({
+      'id': 4,
+      'nombreUsuario': 'maria',
+      'nombreCompleto': 'Maria Lopez',
+      'rol': 'MANAGER',
+      'activo': true,
+    });
+    final task = Task.fromJson({
+      'id': 8,
+      'titulo': 'Revisar API',
+      'descripcion': 'Validar endpoints',
+      'estado': 'EN_PROGRESO',
+      'equipoId': 2,
+      'creadorId': 4,
+    });
+
+    expect(user.role, UserRole.manager);
+    expect(task.status, TaskStatus.inProgress);
+    expect(task.teamId, 2);
+  });
+
+  test('convierte errores REST en mensajes de API', () async {
+    final client = ApiClient(
+      baseUrl: 'http://test.local',
+      client: MockClient((_) async => http.Response('{"message":"Acceso denegado"}', 403)),
     );
 
-    // Verify that our counter starts at 0.
-    expect(
-      find.text('0'),
-      findsOneWidget,
-    );
-    expect(
-      find.text('1'),
-      findsNothing,
+    expect(client.get('/api/tasks'), throwsA(isA<ApiException>().having((error) => error.message, 'message', 'Acceso denegado')));
+  });
+
+  test('envía JWT y cuerpo JSON en operaciones protegidas', () async {
+    late http.Request request;
+    final client = ApiClient(
+      baseUrl: 'http://test.local',
+      token: 'jwt-test',
+      client: MockClient((incoming) async {
+        request = incoming;
+        return http.Response('{"id":1}', 201);
+      }),
     );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(
-      find.byIcon(Icons.add),
-    );
-    await tester.pump();
+    await client.post('/api/teams', {'nombre': 'Mobile'});
 
-    // Verify that our counter has incremented.
-    expect(
-      find.text('0'),
-      findsNothing,
-    );
-    expect(
-      find.text('1'),
-      findsOneWidget,
-    );
+    expect(request.headers['authorization'], 'Bearer jwt-test');
+    expect(request.headers['content-type'], contains('application/json'));
+    expect(request.body, '{"nombre":"Mobile"}');
+  });
+
+  test('interpreta solicitud y recordatorio del backend', () {
+    final request = LinkRequest.fromJson({
+      'id': 3,
+      'nombreUsuarioSolicitado': 'ana',
+      'estado': 'PENDIENTE',
+      'fechaSolicitud': '2026-09-18T12:00:00Z',
+    });
+    final reminder = Reminder.fromJson({
+      'id': 5,
+      'tareaId': 9,
+      'usuarioId': 3,
+      'fechaHora': '2026-09-19T12:00:00Z',
+      'activo': true,
+    });
+
+    expect(request.status, 'PENDIENTE');
+    expect(request.username, 'ana');
+    expect(reminder.taskId, 9);
+    expect(reminder.active, isTrue);
   });
 }
