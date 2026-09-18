@@ -1,9 +1,32 @@
 services:
   postgres:
-    image: 'postgres:latest'
+    image: postgres:16-alpine
+    restart: unless-stopped
     environment:
-      - 'POSTGRES_DB=mydatabase'
-      - 'POSTGRES_PASSWORD=secret'
-      - 'POSTGRES_USER=myuser'
+      POSTGRES_DB: ${POSTGRES_DB:-vertal}
+      POSTGRES_USER: ${POSTGRES_USER:-vertal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - vertal-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vertal} -d ${POSTGRES_DB:-vertal}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  backend:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
-      - '5432'
+      - "${SERVER_PORT:-8080}:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-vertal}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-vertal}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-3600000}
+      SERVER_PUBLIC_KEY: ${SERVER_PUBLIC_KEY:?SERVER_PUBLIC_KEY is required}
+volumes:
+  vertal-postgres:

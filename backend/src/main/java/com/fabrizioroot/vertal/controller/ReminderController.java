@@ -1,0 +1,3 @@
+package com.fabrizioroot.vertal.controller;
+import com.fabrizioroot.vertal.service.TaskService; import org.springframework.security.core.annotation.AuthenticationPrincipal; import org.springframework.web.bind.annotation.*;
+@RestController @RequestMapping("/api/reminders") public class ReminderController { private final TaskService tasks; public ReminderController(TaskService t){tasks=t;} @DeleteMapping("/{id}") public void delete(@AuthenticationPrincipal Long uid,@PathVariable Long id){tasks.removeReminder(uid,id);} }
