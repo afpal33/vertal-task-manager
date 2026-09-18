@@ -28,5 +28,10 @@ services:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-3600000}
       SERVER_PUBLIC_KEY: ${SERVER_PUBLIC_KEY:?SERVER_PUBLIC_KEY is required}
+    secrets:
+      - server-private-key
 volumes:
   vertal-postgres:
+secrets:
+  server-private-key:
+    file: ./secrets/server-private-key.pem

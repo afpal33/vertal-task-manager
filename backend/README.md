@@ -4,9 +4,17 @@ Backend self-hosted para gestión colaborativa de tareas. Usa Spring Boot, Postg
 
 ## Ejecución con Docker
 
-1. Copiar `.env.example` a `.env` y cambiar todos los secretos.
-2. Configurar `SERVER_PUBLIC_KEY` con la clave pública del servidor. La clave privada debe permanecer en un archivo o secreto administrado por la organización y nunca se persiste en PostgreSQL.
-3. Ejecutar `docker compose up --build`.
+La instalación normal no requiere editar variables a mano:
+
+```bash
+cd backend
+./setup.sh
+docker compose up --build
+```
+
+`setup.sh` genera `.env`, una contraseña PostgreSQL, un secreto JWT y un par de claves local en `backend/secrets/`. Esos archivos están excluidos de Git. La clave privada permanece en el host y nunca se persiste en PostgreSQL.
+
+Para una instalación automatizada o administrada, también puedes crear `.env` a partir de `.env.example` y proporcionar tus propios secretos antes de ejecutar Compose.
 
 El backend queda disponible en `http://localhost:8080`. PostgreSQL solo se expone dentro de la red de Compose. Flyway ejecuta las migraciones `V1__init_schema.sql` y `V2__seed_admin.sql` al iniciar.
 
