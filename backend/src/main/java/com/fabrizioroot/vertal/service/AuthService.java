@@ -1,0 +1,35 @@
+package com.fabrizioroot.vertal.service;
+
+import com.fabrizioroot.vertal.dto.*;
+import com.fabrizioroot.vertal.exception.*;
+import com.fabrizioroot.vertal.model.*;
+import com.fabrizioroot.vertal.repository.*;
+import com.fabrizioroot.vertal.security.JwtService;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import java.nio.charset.StandardCharsets;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.spec.X509EncodedKeySpec;
+import java.time.Instant;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
+@Service
+public class AuthService {
+    private record Challenge(String value, Instant expiresAt, String deviceId) {}
+    private final Map<String, Challenge> challenges = new ConcurrentHashMap<>();
+    private final OrganizacionRepository organizaciones; private final SolicitudVinculacionRepository solicitudes; private final UsuarioRepository usuarios;
+    private final DispositivoRepository dispositivos; private final VinculacionDispositivoRepository vinculaciones; private final JwtService jwt;
+    private final String serverKey;
+    public AuthService(OrganizacionRepository o, SolicitudVinculacionRepository s, UsuarioRepository u, DispositivoRepository d, VinculacionDispositivoRepository v, JwtService j, @Value("${vertal.server.public-key}") String serverKey) { organizaciones=o; solicitudes=s; usuarios=u; dispositivos=d; vinculaciones=v; jwt=j; this.serverKey=serverKey; }
+    public LinkingResponseDto request(LinkingRequestDto dto) { Organizacion org=organizaciones.findAll().stream().findFirst().orElseThrow(() -> new BadRequestException("No hay organización configurada")); SolicitudVinculacion s=new SolicitudVinculacion(); s.setNombreUsuarioSolicitado(dto.nombreUsuarioSolicitado()); s.setNombreDispositivo(dto.nombreDispositivo()); s.setIdentificadorDispositivo(dto.identificadorDispositivo()); s.setClavePublicaDispositivo(dto.clavePublicaDispositivo()); s.setOrganizacion(org); return to(solicitudes.save(s)); }
+    public ChallengeResponseDto challenge(ChallengeRequestDto dto) { dispositivos.findByIdentificadorDispositivoAndActivoTrue(dto.identificadorDispositivo()).orElseThrow(() -> new UnauthorizedOperationException("Dispositivo no vinculado")); String id=UUID.randomUUID().toString(); String value=Base64.getUrlEncoder().withoutPadding().encodeToString(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8)); Instant expires=Instant.now().plusSeconds(120); challenges.put(id,new Challenge(value,expires,dto.identificadorDispositivo())); return new ChallengeResponseDto(id,value,expires); }
+    public LoginResponseDto login(LoginRequestDto dto) { Challenge c=challenges.remove(dto.challengeId()); if(c==null || c.expiresAt().isBefore(Instant.now()) || !c.deviceId().equals(dto.identificadorDispositivo())) throw new UnauthorizedOperationException("Desafío inválido o expirado"); Dispositivo d=dispositivos.findByIdentificadorDispositivoAndActivoTrue(dto.identificadorDispositivo()).orElseThrow(() -> new UnauthorizedOperationException("Dispositivo no vinculado")); try { PublicKey key=publicKey(d.getClavePublicaDispositivo()); Signature signature=Signature.getInstance("SHA256withRSA"); signature.initVerify(key); signature.update(c.value().getBytes(StandardCharsets.UTF_8)); if(!signature.verify(Base64.getDecoder().decode(dto.firma()))) throw new UnauthorizedOperationException("Firma inválida"); } catch (UnauthorizedOperationException e) { throw e; } catch(Exception e) { throw new UnauthorizedOperationException("No se pudo verificar la firma"); } Usuario u=Optional.ofNullable(d.getUsuario()).filter(Usuario::isActivo).orElseThrow(() -> new UnauthorizedOperationException("Usuario inactivo")); return new LoginResponseDto(jwt.createToken(u.getId()), new UserResponseDto(u.getId(),u.getNombreUsuario(),u.getNombreCompleto(),u.getRol(),u.isActivo())); }
+    public LinkingResponseDto approve(Long id, Usuario admin, ApproveLinkingRequestDto dto) { if(admin.getRol()!=Rol.ADMINISTRADOR_SISTEMAS) throw new UnauthorizedOperationException("Solo el administrador puede aprobar vinculaciones"); SolicitudVinculacion s=solicitudes.findById(id).orElseThrow(() -> new ResourceNotFoundException("Solicitud no encontrada")); if(s.getEstado()!=EstadoSolicitud.PENDIENTE) throw new ConflictException("La solicitud ya fue procesada"); Usuario u=usuarios.findByNombreUsuario(s.getNombreUsuarioSolicitado()).orElseGet(Usuario::new); u.setNombreUsuario(s.getNombreUsuarioSolicitado()); u.setNombreCompleto(dto.nombreCompleto()); u.setRol(dto.rol()==null?Rol.USUARIO_NORMAL:Rol.valueOf(dto.rol())); u.setOrganizacion(s.getOrganizacion()); u.setActivo(true); usuarios.save(u); Dispositivo d=dispositivos.findByIdentificadorDispositivoAndActivoTrue(s.getIdentificadorDispositivo()).orElseGet(Dispositivo::new); d.setIdentificadorDispositivo(s.getIdentificadorDispositivo()); d.setNombreDispositivo(s.getNombreDispositivo()); d.setClavePublicaDispositivo(s.getClavePublicaDispositivo()); d.setClavePublicaServidor(serverKey); d.setUsuario(u); d.setActivo(true); dispositivos.save(d); s.setEstado(EstadoSolicitud.APROBADA); solicitudes.save(s); VinculacionDispositivo v=new VinculacionDispositivo(); v.setUsuario(u); v.setDispositivo(d); v.setSolicitudVinculacion(s); vinculaciones.save(v); return to(s); }
+    public LinkingResponseDto reject(Long id, Usuario admin) { if(admin.getRol()!=Rol.ADMINISTRADOR_SISTEMAS) throw new UnauthorizedOperationException("Solo el administrador puede rechazar vinculaciones"); SolicitudVinculacion s=solicitudes.findById(id).orElseThrow(() -> new ResourceNotFoundException("Solicitud no encontrada")); s.setEstado(EstadoSolicitud.RECHAZADA); return to(solicitudes.save(s)); }
+    private LinkingResponseDto to(SolicitudVinculacion s) { return new LinkingResponseDto(s.getId(),s.getNombreUsuarioSolicitado(),s.getEstado(),s.getFechaSolicitud(),s.getEstado()==EstadoSolicitud.APROBADA?serverKey:null); }
+    private PublicKey publicKey(String raw) throws Exception { String normalized=raw.replace("-----BEGIN PUBLIC KEY-----","").replace("-----END PUBLIC KEY-----","").replaceAll("\\s",""); return KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(Base64.getDecoder().decode(normalized))); }
+}
