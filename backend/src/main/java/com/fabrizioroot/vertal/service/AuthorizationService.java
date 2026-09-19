@@ -4,8 +4,10 @@ import com.fabrizioroot.vertal.exception.UnauthorizedOperationException;
 import com.fabrizioroot.vertal.model.*;
 import com.fabrizioroot.vertal.repository.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class AuthorizationService {
     private final UsuarioRepository usuarios; private final MembresiaEquipoRepository membresias; private final AsignacionRepository asignaciones;
     public AuthorizationService(UsuarioRepository u, MembresiaEquipoRepository m, AsignacionRepository a) { usuarios=u; membresias=m; asignaciones=a; }
@@ -16,5 +18,12 @@ public class AuthorizationService {
     public void canOperate(Usuario u) { if (isAdmin(u)) throw new UnauthorizedOperationException("El administrador de sistemas no tiene permisos operativos por defecto"); }
     public void memberOrManager(Usuario u, Equipo e) { canOperate(u); if (!isManager(u) && !e.getCreador().getId().equals(u.getId()) && !membresias.existsByUsuarioIdAndEquipoIdAndActivaTrue(u.getId(), e.getId())) throw new UnauthorizedOperationException("No pertenece al equipo"); }
     public void managerOrCreator(Usuario u, Equipo e) { canOperate(u); if (!isManager(u) && !e.getCreador().getId().equals(u.getId())) throw new UnauthorizedOperationException("Permiso insuficiente"); }
-    public void assignedOrManager(Usuario u, Tarea t) { canOperate(u); if (!isManager(u) && !asignaciones.existsByTareaIdAndUsuarioAsignadoId(t.getId(), u.getId())) throw new UnauthorizedOperationException("No está asignado a la tarea"); }
+    public void assignedOrCreator(Usuario u, Tarea t) {
+        canOperate(u);
+        if (!isManager(u) &&
+            !t.getCreador().getId().equals(u.getId()) &&
+            !asignaciones.existsByTareaIdAndUsuarioAsignadoId(t.getId(), u.getId())) {
+            throw new UnauthorizedOperationException("No está asignado a la tarea ni es el creador");
+        }
+    }
 }
