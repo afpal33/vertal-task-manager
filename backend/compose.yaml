@@ -28,6 +28,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-3600000}
       SERVER_PUBLIC_KEY: ${SERVER_PUBLIC_KEY:?SERVER_PUBLIC_KEY is required}
+      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:?BOOTSTRAP_TOKEN is required}
     secrets:
       - server-private-key
 volumes:

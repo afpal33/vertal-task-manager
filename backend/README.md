@@ -12,7 +12,7 @@ cd backend
 docker compose up --build
 ```
 
-`setup.sh` genera `.env`, una contraseña PostgreSQL, un secreto JWT y un par de claves local en `backend/secrets/`. Esos archivos están excluidos de Git. La clave privada permanece en el host y nunca se persiste en PostgreSQL.
+`setup.sh` genera `.env`, una contraseña PostgreSQL, un secreto JWT, un token de bootstrap y un par de claves local en `backend/secrets/`. Esos archivos están excluidos de Git. La clave privada permanece en el host y nunca se persiste en PostgreSQL. El script imprime el token de bootstrap: entrégalo de forma segura al primer administrador.
 
 Para una instalación automatizada o administrada, también puedes crear `.env` a partir de `.env.example` y proporcionar tus propios secretos antes de ejecutar Compose.
 
@@ -36,6 +36,10 @@ El código está organizado en `config`, `controller`, `dto`, `exception`, `mode
 La aplicación genera localmente su par de claves. Envía solo la clave pública a `POST /api/auth/linking/request`. Un administrador aprueba o rechaza la solicitud. Tras la aprobación, el cliente pide un desafío en `POST /api/auth/challenge`, firma el valor recibido con su clave privada y envía la firma Base64 a `POST /api/auth/login`. El desafío expira en dos minutos y se elimina al intentar usarlo, por lo que no puede reutilizarse. El login exitoso devuelve un JWT que se envía como `Authorization: Bearer <token>`.
 
 El seed crea el usuario `admin` sin clave privada. Para el primer arranque, la organización debe registrar la clave pública del dispositivo administrativo y crear su dispositivo/vinculación usando un procedimiento SQL controlado, o ejecutar una migración de bootstrap interna antes de exponer el servidor. El backend nunca genera ni almacena la clave privada.
+
+### Primer administrador
+
+Después de ejecutar `./setup.sh`, abre la app, genera la credencial local, configura la URL del servidor y usa la sección **Configurar administrador inicial**. Introduce el token que imprimió `setup.sh`, tu nombre completo y el nombre del dispositivo. La app llama a `POST /api/auth/bootstrap/admin` y recibe el JWT directamente. El endpoint rechaza el bootstrap cuando el administrador ya tiene un dispositivo activo. Si `.env` ya existía de una instalación anterior, volver a ejecutar `./setup.sh` añade el token faltante sin regenerar los secretos existentes.
 
 ## Endpoints principales
 

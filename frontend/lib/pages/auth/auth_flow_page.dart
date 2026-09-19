@@ -14,6 +14,8 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
   final _server = TextEditingController();
   final _username = TextEditingController();
   final _deviceName = TextEditingController();
+  final _fullName = TextEditingController();
+  final _bootstrapToken = TextEditingController();
 
   AppController get app => widget.controller;
 
@@ -22,6 +24,8 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
     _server.dispose();
     _username.dispose();
     _deviceName.dispose();
+    _fullName.dispose();
+    _bootstrapToken.dispose();
     super.dispose();
   }
 
@@ -116,6 +120,18 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
             TextFormField(controller: _deviceName, decoration: const InputDecoration(labelText: 'Nombre de este dispositivo', hintText: 'Teléfono de Ana')),
             const SizedBox(height: 16),
             FilledButton(onPressed: () => app.requestLink(_username.text.trim(), _deviceName.text.trim()), child: const Text('Enviar solicitud')),
+            const SizedBox(height: 28),
+            const Divider(),
+            const SizedBox(height: 18),
+            Text('¿Es el primer administrador?', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            Text('Usa el token mostrado por setup.sh. Solo funciona para vincular el primer dispositivo administrador.', style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 12),
+            TextFormField(controller: _fullName, decoration: const InputDecoration(labelText: 'Nombre completo del administrador')),
+            const SizedBox(height: 12),
+            TextFormField(controller: _bootstrapToken, obscureText: true, decoration: const InputDecoration(labelText: 'Token de bootstrap')),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(onPressed: () => app.bootstrapAdmin(_bootstrapToken.text.trim(), _fullName.text.trim(), _deviceName.text.trim()), icon: const Icon(Icons.admin_panel_settings_outlined), label: const Text('Configurar administrador inicial')),
           ],
         ),
       );

@@ -4,7 +4,19 @@ set -eu
 cd "$(dirname "$0")"
 
 if [ -f .env ]; then
-  printf '%s\n' '.env already exists; leaving it unchanged.'
+  if ! grep -q '^BOOTSTRAP_TOKEN=' .env; then
+    command -v openssl >/dev/null 2>&1 || {
+      printf '%s\n' 'Error: openssl is required to generate the bootstrap token.' >&2
+      exit 1
+    }
+    BOOTSTRAP_TOKEN="$(openssl rand -hex 32)"
+    printf 'BOOTSTRAP_TOKEN=%s\n' "$BOOTSTRAP_TOKEN" >> .env
+    chmod 600 .env
+    printf '%s\n' "Added initial admin bootstrap token: $BOOTSTRAP_TOKEN"
+    printf '%s\n' 'Keep this token private; it is only for the first administrator device.'
+  else
+    printf '%s\n' '.env already exists; leaving it unchanged.'
+  fi
   printf '%s\n' 'Run: docker compose up --build'
   exit 0
 fi
@@ -22,12 +34,14 @@ openssl pkey -in secrets/server-private-key.pem -pubout -outform DER 2>/dev/null
 
 POSTGRES_PASSWORD="$(openssl rand -hex 24)"
 JWT_SECRET="$(openssl rand -hex 32)"
+BOOTSTRAP_TOKEN="$(openssl rand -hex 32)"
 
 cat > .env <<EOF
 POSTGRES_DB=vertal
 POSTGRES_USER=vertal
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 JWT_SECRET=$JWT_SECRET
+BOOTSTRAP_TOKEN=$BOOTSTRAP_TOKEN
 JWT_EXPIRATION=3600000
 SERVER_PUBLIC_KEY=$(cat secrets/server-public-key.b64)
 SERVER_PRIVATE_KEY_PATH=/run/secrets/server-private-key
@@ -38,3 +52,5 @@ chmod 600 .env secrets/server-private-key.pem secrets/server-public-key.b64
 printf '%s\n' 'Vertal is configured.'
 printf '%s\n' 'Start it with: docker compose up --build'
 printf '%s\n' 'Backend URL: http://localhost:8080'
+printf '%s\n' "Initial admin bootstrap token: $BOOTSTRAP_TOKEN"
+printf '%s\n' 'Keep this token private; it is only for the first administrator device.'
