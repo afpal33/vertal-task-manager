@@ -15,6 +15,24 @@ flutter run --dart-define=VERTAL_API_URL=http://10.0.2.2:8080
 
 `VERTAL_API_URL` apunta al backend. En el emulador Android `10.0.2.2` representa el host; en un dispositivo físico se debe usar la dirección de red del servidor self-hosted.
 
+### Linux desktop en Fedora
+
+Linux desktop requiere dependencias nativas adicionales. En Fedora instala:
+
+```bash
+sudo dnf install clang cmake ninja-build pkgconf-pkg-config gtk3-devel libsecret-devel
+```
+
+Después reconstruye:
+
+```bash
+flutter clean
+flutter pub get
+flutter run -d linux
+```
+
+El proyecto también desactiva de forma localizada un warning antiguo de Clang emitido por `flutter_secure_storage_linux`; Android no se ve afectado.
+
 ### Entorno Android local
 
 En este workspace el SDK está instalado en `frontend/.android-sdk` y Flutter usa Java 21 para Gradle. Si se recrea el entorno:
