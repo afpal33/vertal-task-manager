@@ -4,6 +4,7 @@ import com.fabrizioroot.vertal.dto.*; import com.fabrizioroot.vertal.model.Usuar
  private final AuthService auth; private final UsuarioRepository usuarios; private final AuthorizationService authorization;
  public AuthController(AuthService a,UsuarioRepository u,AuthorizationService x){auth=a;usuarios=u;authorization=x;}
  @PostMapping("/linking/request") public LinkingResponseDto request(@Valid @RequestBody LinkingRequestDto dto){return auth.request(dto);}
+ @PostMapping("/bootstrap/admin") public LoginResponseDto bootstrapAdmin(@Valid @RequestBody BootstrapAdminRequestDto dto){return auth.bootstrapAdmin(dto);}
  @PostMapping("/challenge") public ChallengeResponseDto challenge(@Valid @RequestBody ChallengeRequestDto dto){return auth.challenge(dto);}
  @PostMapping("/login") public LoginResponseDto login(@Valid @RequestBody LoginRequestDto dto){return auth.login(dto);}
  @GetMapping("/me") public UserResponseDto me(@AuthenticationPrincipal Long id){Usuario u=authorization.current(id);return new UserResponseDto(u.getId(),u.getNombreUsuario(),u.getNombreCompleto(),u.getRol(),u.isActivo());}
