@@ -16,7 +16,14 @@ docker compose up --build
 
 Para una instalación automatizada o administrada, también puedes crear `.env` a partir de `.env.example` y proporcionar tus propios secretos antes de ejecutar Compose.
 
-El backend queda disponible en `http://localhost:8080`. PostgreSQL solo se expone dentro de la red de Compose. Flyway ejecuta las migraciones `V1__init_schema.sql` y `V2__seed_admin.sql` al iniciar.
+El backend queda disponible en `http://localhost:8080`. PostgreSQL solo se expone dentro de la red de Compose. Flyway ejecuta las migraciones del directorio `db/migration` al iniciar, incluida una reparación idempotente para instalaciones antiguas que no tenían la tabla de asignaciones.
+
+Si ya tienes un volumen creado, no lo borres: reconstruye y reinicia para que Flyway aplique la reparación:
+
+```bash
+docker compose up -d --build
+docker compose logs -f backend
+```
 
 Para ejecutar localmente: `./mvnw test` usa H2; para producción se debe configurar PostgreSQL mediante las variables de `.env`.
 
