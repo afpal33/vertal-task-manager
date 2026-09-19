@@ -61,10 +61,10 @@ class TeamServiceTests {
         Usuario member = user(2L, Rol.USUARIO_NORMAL);
         when(auth.current(1L)).thenReturn(creator);
         when(equipos.findById(10L)).thenReturn(Optional.of(team));
-        when(usuarios.findById(2L)).thenReturn(Optional.of(member));
+        when(usuarios.findByNombreUsuario("user-2")).thenReturn(Optional.of(member));
         when(membresias.existsByUsuarioIdAndEquipoIdAndActivaTrue(2L, 10L)).thenReturn(true);
 
-        assertThrows(ConflictException.class, () -> service.add(1L, 10L, new MemberRequestDto(2L)));
+        assertThrows(ConflictException.class, () -> service.add(1L, 10L, new MemberRequestDto("user-2")));
         verify(membresias, never()).save(any());
     }
 
@@ -75,7 +75,7 @@ class TeamServiceTests {
         when(equipos.findById(10L)).thenReturn(Optional.of(team));
         when(membresias.findByUsuarioIdAndEquipoId(2L, 10L)).thenReturn(Optional.of(membership));
 
-        service.remove(1L, 10L, 2L);
+        service.remove(1L, 10L, "user-2");
 
         assertFalse(membership.isActiva());
         verify(membresias).save(membership);

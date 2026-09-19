@@ -67,11 +67,11 @@ class TaskServiceTests {
         Usuario assignee = user(2L, Rol.USUARIO_NORMAL);
         when(tareas.findById(20L)).thenReturn(Optional.of(task));
         when(auth.current(1L)).thenReturn(creator);
-        when(usuarios.findById(2L)).thenReturn(Optional.of(assignee));
+        when(usuarios.findByNombreUsuario("user-2")).thenReturn(Optional.of(assignee));
         when(auth.isMember(2L, team)).thenReturn(true);
         when(asignaciones.existsByTareaIdAndUsuarioAsignadoId(20L, 2L)).thenReturn(false);
 
-        service.assign(1L, 20L, new AssignmentRequestDto(2L));
+        service.assign(1L, 20L, new AssignmentRequestDto("user-2"));
 
         verify(asignaciones).save(any(Asignacion.class));
     }
@@ -81,11 +81,11 @@ class TaskServiceTests {
         Usuario assignee = user(2L, Rol.USUARIO_NORMAL);
         when(tareas.findById(20L)).thenReturn(Optional.of(task));
         when(auth.current(1L)).thenReturn(creator);
-        when(usuarios.findById(2L)).thenReturn(Optional.of(assignee));
+        when(usuarios.findByNombreUsuario("user-2")).thenReturn(Optional.of(assignee));
         when(auth.isMember(2L, team)).thenReturn(true);
         when(asignaciones.existsByTareaIdAndUsuarioAsignadoId(20L, 2L)).thenReturn(true);
 
-        assertThrows(ConflictException.class, () -> service.assign(1L, 20L, new AssignmentRequestDto(2L)));
+        assertThrows(ConflictException.class, () -> service.assign(1L, 20L, new AssignmentRequestDto("user-2")));
         verify(asignaciones, never()).save(any());
     }
 
@@ -98,7 +98,7 @@ class TaskServiceTests {
         TaskResponseDto response = service.status(2L, 20L, new StatusUpdateRequestDto(EstadoTarea.EN_PROGRESO));
 
         assertEquals(EstadoTarea.EN_PROGRESO, response.estado());
-        verify(auth).assignedOrManager(any(Usuario.class), eq(task));
+        verify(auth).assignedOrCreator(any(Usuario.class), eq(task));
     }
 
     @Test
@@ -124,10 +124,10 @@ class TaskServiceTests {
         Usuario assignee = user(2L, Rol.USUARIO_NORMAL);
         when(tareas.findById(20L)).thenReturn(Optional.of(task));
         when(auth.current(1L)).thenReturn(creator);
-        when(usuarios.findById(2L)).thenReturn(Optional.of(assignee));
+        when(usuarios.findByNombreUsuario("user-2")).thenReturn(Optional.of(assignee));
         when(auth.isMember(2L, team)).thenReturn(false);
 
-        assertThrows(BadRequestException.class, () -> service.assign(1L, 20L, new AssignmentRequestDto(2L)));
+        assertThrows(BadRequestException.class, () -> service.assign(1L, 20L, new AssignmentRequestDto("user-2")));
     }
 
     private Usuario user(Long id, Rol role) {

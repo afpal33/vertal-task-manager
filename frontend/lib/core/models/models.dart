@@ -18,19 +18,19 @@ class Team {
 }
 
 class Task {
-  const Task({required this.id, required this.title, required this.description, required this.status, required this.teamId, required this.creatorId, this.dueDate});
-  final int id; final String title; final String description; final TaskStatus status; final int teamId; final int creatorId; final DateTime? dueDate;
-  factory Task.fromJson(Map<String, dynamic> json) => Task(id: json['id'], title: json['titulo'], description: json['descripcion'] ?? '', status: taskStatusFrom(json['estado']), teamId: json['equipoId'], creatorId: json['creadorId'], dueDate: json['fechaVencimiento'] == null ? null : DateTime.parse(json['fechaVencimiento']));
+  const Task({required this.id, required this.title, required this.description, required this.status, required this.teamId, required this.creatorId, this.assigneeId, this.assigneeUsername, this.assigneeName, this.dueDate});
+  final int id; final String title; final String description; final TaskStatus status; final int teamId; final int creatorId; final int? assigneeId; final String? assigneeUsername; final String? assigneeName; final DateTime? dueDate;
+  factory Task.fromJson(Map<String, dynamic> json) => Task(id: json['id'], title: json['titulo'], description: json['descripcion'] ?? '', status: taskStatusFrom(json['estado']), teamId: json['equipoId'], creatorId: json['creadorId'], assigneeId: json['asignadoId'], assigneeUsername: json['asignadoNombreUsuario'], assigneeName: json['asignadoNombreCompleto'], dueDate: json['fechaVencimiento'] == null ? null : DateTime.parse(json['fechaVencimiento']).toLocal());
 }
 
 class LinkRequest {
   const LinkRequest({required this.id, required this.username, required this.status, required this.date});
   final int id; final String username; final String status; final DateTime date;
-  factory LinkRequest.fromJson(Map<String, dynamic> json) => LinkRequest(id: json['id'], username: json['nombreUsuarioSolicitado'], status: json['estado'], date: DateTime.parse(json['fechaSolicitud']));
+  factory LinkRequest.fromJson(Map<String, dynamic> json) => LinkRequest(id: json['id'], username: json['nombreUsuarioSolicitado'], status: json['estado'], date: DateTime.parse(json['fechaSolicitud']).toLocal());
 }
 
 class Reminder {
   const Reminder({required this.id, required this.taskId, required this.userId, required this.date, required this.active});
   final int id; final int taskId; final int userId; final DateTime date; final bool active;
-  factory Reminder.fromJson(Map<String, dynamic> json) => Reminder(id: json['id'], taskId: json['tareaId'], userId: json['usuarioId'], date: DateTime.parse(json['fechaHora']), active: json['activo'] ?? true);
+  factory Reminder.fromJson(Map<String, dynamic> json) => Reminder(id: json['id'], taskId: json['tareaId'], userId: json['usuarioId'], date: DateTime.parse(json['fechaHora']).toLocal(), active: json['activo'] ?? true);
 }

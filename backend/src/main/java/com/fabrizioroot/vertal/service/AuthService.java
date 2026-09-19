@@ -16,8 +16,10 @@ import java.security.spec.X509EncodedKeySpec;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class AuthService {
     private record Challenge(String value, Instant expiresAt, String deviceId) {}
     private final Map<String, Challenge> challenges = new ConcurrentHashMap<>();

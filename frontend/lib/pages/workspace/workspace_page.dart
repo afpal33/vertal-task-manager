@@ -108,6 +108,8 @@ class TaskCard extends StatelessWidget {
                     Text(task.description.isEmpty ? 'Sin descripción' : task.description, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.blueGrey.shade600)),
                     const SizedBox(height: 8),
                     StatusPill(statusLabel(task.status), color: color),
+                    const SizedBox(height: 4),
+                    Text(task.assigneeName == null ? 'Sin asignar' : 'Asignada a ${task.assigneeName}', style: TextStyle(color: Colors.blueGrey.shade600, fontSize: 12)),
                   ],
                 ),
               ),
@@ -264,7 +266,10 @@ class TaskDetails extends StatefulWidget {
 class _TaskDetailsState extends State<TaskDetails> {
   late TaskStatus status = widget.task.status;
   List<Reminder> reminders = [];
-  bool get canManage => widget.app.user?.role == UserRole.manager || widget.app.user?.id == widget.task.creatorId;
+  bool get canManage =>
+      widget.app.user?.role == UserRole.manager ||
+      widget.app.user?.id == widget.task.creatorId ||
+      widget.app.user?.id == widget.task.assigneeId;
 
   @override
   void initState() { super.initState(); loadReminders(); }
@@ -282,6 +287,8 @@ class _TaskDetailsState extends State<TaskDetails> {
             Text(widget.task.title, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
             Text(widget.task.description.isEmpty ? 'Sin descripción' : widget.task.description),
+            const SizedBox(height: 8),
+            ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.person_outline), title: const Text('Asignada a'), subtitle: Text(widget.task.assigneeName == null ? 'Sin asignar' : '${widget.task.assigneeName} (@${widget.task.assigneeUsername})')),
             const SizedBox(height: 22),
             DropdownButtonFormField<TaskStatus>(initialValue: status, decoration: const InputDecoration(labelText: 'Estado'), items: TaskStatus.values.map((value) => DropdownMenuItem(value: value, child: Text(statusLabel(value)))).toList(), onChanged: (value) async { if (value == null) return; setState(() => status = value); await widget.app.updateTaskStatus(widget.task, value); }),
             if (widget.task.dueDate != null) ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.event_outlined), title: const Text('Vencimiento'), subtitle: Text(DateFormat('d MMM y, HH:mm').format(widget.task.dueDate!))),
@@ -318,10 +325,9 @@ class _TaskDetailsState extends State<TaskDetails> {
   }
 
   Future<void> assignTask(BuildContext context) async {
-    final id = TextEditingController();
-    final assigned = await showDialog<bool>(context: context, builder: (_) => AlertDialog(title: const Text('Asignar tarea'), content: TextField(controller: id, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'ID del usuario')), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')), FilledButton(onPressed: () => Navigator.pop(context, int.tryParse(id.text) != null), child: const Text('Asignar'))]));
-    final userId = int.tryParse(id.text);
-    if (assigned == true && userId != null) await widget.app.assignTask(widget.task, userId);
+    final username = TextEditingController();
+    final assigned = await showDialog<bool>(context: context, builder: (_) => AlertDialog(title: const Text('Asignar tarea'), content: TextField(controller: username, decoration: const InputDecoration(labelText: 'Nombre de usuario')), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')), FilledButton(onPressed: () => Navigator.pop(context, username.text.trim().isNotEmpty), child: const Text('Asignar'))]));
+    if (assigned == true) await widget.app.assignTask(widget.task, username.text.trim());
   }
 }
 
@@ -334,7 +340,22 @@ Future<void> showTaskDialog(BuildContext context, AppController app) async {
 }
 
 Future<void> showTeamDialog(BuildContext context, AppController app) async { final name = TextEditingController(); final created = await showDialog<bool>(context: context, builder: (_) => AlertDialog(title: const Text('Nuevo equipo'), content: TextField(controller: name, autofocus: true, decoration: const InputDecoration(labelText: 'Nombre del equipo')), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')), FilledButton(onPressed: () => Navigator.pop(context, name.text.trim().isNotEmpty), child: const Text('Crear'))])); if (created == true) await app.createTeam(name.text.trim()); }
-Future<void> showMembersDialog(BuildContext context, AppController app, Team team) async { final id = TextEditingController(); await showDialog<void>(context: context, builder: (_) => AlertDialog(title: Text(team.name), content: TextField(controller: id, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'ID del usuario')), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cerrar')), TextButton(onPressed: () async { final value = int.tryParse(id.text); if (value != null) await app.removeMember(team.id, value); if (context.mounted) Navigator.pop(context); }, child: const Text('Retirar')), FilledButton(onPressed: () async { final value = int.tryParse(id.text); if (value != null) await app.addMember(team.id, value); if (context.mounted) Navigator.pop(context); }, child: const Text('Agregar miembro'))])); }
+Future<void> showMembersDialog(BuildContext context, AppController app, Team team) async {
+  final username = TextEditingController();
+  await showDialog<void>(context: context, builder: (_) => AlertDialog(title: Text(team.name), content: TextField(controller: username, decoration: const InputDecoration(labelText: 'Nombre de usuario')), actions: [
+    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cerrar')),
+    TextButton(onPressed: () async {
+      final value = username.text.trim();
+      if (value.isNotEmpty) await app.removeMember(team.id, value);
+      if (context.mounted) Navigator.pop(context);
+    }, child: const Text('Retirar')),
+    FilledButton(onPressed: () async {
+      final value = username.text.trim();
+      if (value.isNotEmpty) await app.addMember(team.id, value);
+      if (context.mounted) Navigator.pop(context);
+    }, child: const Text('Agregar miembro'))
+  ]));
+}
 Future<void> approveDialog(BuildContext context, AppController app, LinkRequest request) async { final name = TextEditingController(text: request.username); final approved = await showDialog<bool>(context: context, builder: (_) => AlertDialog(title: const Text('Aprobar vinculación'), content: TextField(controller: name, decoration: const InputDecoration(labelText: 'Nombre completo')), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Aprobar'))])); if (approved == true) await app.approve(request, name.text.trim()); }
 
 Color statusColor(TaskStatus status) => switch (status) { TaskStatus.pending => const Color(0xFFB7791F), TaskStatus.inProgress => const Color(0xFF0E7490), TaskStatus.completed => const Color(0xFF2F855A) };
