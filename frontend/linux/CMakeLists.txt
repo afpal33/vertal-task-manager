@@ -2,6 +2,10 @@
 cmake_minimum_required(VERSION 3.13)
 project(runner LANGUAGES CXX)
 
+# flutter_secure_storage_linux 1.2.x ships a JSON header that triggers this
+# deprecated Clang warning, and the plugin also enables -Werror.
+add_compile_options(-Wno-deprecated-literal-operator)
+
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
 set(BINARY_NAME "vertal")
