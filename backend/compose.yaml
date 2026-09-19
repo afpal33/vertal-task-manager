@@ -22,7 +22,7 @@ services:
     ports:
       - "${SERVER_PORT:-8080}:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-vertal}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-vertal}?connectTimeout=30&tcpKeepAlive=true
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-vertal}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
