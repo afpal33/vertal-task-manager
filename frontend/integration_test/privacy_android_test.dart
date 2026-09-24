@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -28,12 +30,20 @@ void main() {
   testWidgets('el cliente solo se comunica con el servidor configurado', (
     tester,
   ) async {
-    const serverUrl = String.fromEnvironment('RNF02_SERVER_URL');
-    expect(
-      serverUrl,
-      isNotEmpty,
-      reason: 'Ejecutar con --dart-define=RNF02_SERVER_URL=<servidor>',
-    );
+    var serverUrl = const String.fromEnvironment('RNF02_SERVER_URL');
+    if (serverUrl.isEmpty) {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((request) async {
+        await request.drain<void>();
+        request.response
+          ..statusCode = HttpStatus.ok
+          ..headers.contentType = ContentType.json
+          ..write('{"status":"UP"}');
+        await request.response.close();
+      });
+      serverUrl = 'http://${server.address.address}:${server.port}';
+    }
     final client = ApiClient(baseUrl: serverUrl);
 
     await client.get('/actuator/health');

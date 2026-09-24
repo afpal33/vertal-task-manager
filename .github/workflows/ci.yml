@@ -1,10 +1,10 @@
 name: CI
 
 on:
-    push:
-      branches: [main]
-    pull_request:
-      branches: [main]
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   backend_test:
@@ -23,14 +23,27 @@ jobs:
           java-version: '17'
           cache: maven
       - name: Run all backend tests
-        run: ./mvnw --batch-mode test
+        run: |
+          mkdir -p target/evidence
+          ./mvnw --batch-mode test | tee target/evidence/backend-tests.txt
+
+      - name: Upload backend test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-evidence
+          path: |
+            backend/target/surefire-reports/
+            backend/target/evidence/
+          if-no-files-found: warn
+          retention-days: 30
 
   frontend_build:
     name: Frontend build
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: frontend/
+        working-directory: frontend
 
     steps:
       - name: checkout
@@ -40,6 +53,15 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
+
+      - name: setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
 
       - name: flutter clean
         run: flutter clean
@@ -51,7 +73,94 @@ jobs:
         run: flutter analyze
 
       - name: Run all Flutter tests
-        run: flutter test
+        run: |
+          mkdir -p build/test-reports
+          flutter test \
+            --reporter expanded \
+            --file-reporter json:build/test-reports/flutter-tests.json
+
+      - name: Audit frontend and backend privacy dependencies
+        working-directory: ${{ github.workspace }}
+        run: |
+          bash scripts/privacy_dependency_audit.sh \
+            | tee frontend/build/test-reports/privacy-dependencies.txt
 
       - name: flutter build APK
         run: flutter build apk --release
+
+      - name: Upload Flutter test evidence and APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-test-evidence
+          path: |
+            frontend/build/test-reports/
+            frontend/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: warn
+          retention-days: 30
+
+  android_integration_test:
+    name: Android integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: flutter setup
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install Flutter dependencies
+        working-directory: frontend
+        run: flutter pub get
+
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run integration tests on Android
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          working-directory: frontend
+          script: |
+            mkdir -p build/test-reports
+            notification_status=0
+            privacy_status=0
+            flutter test integration_test/notification_delivery_test.dart \
+              -d emulator-5554 \
+              --reporter expanded \
+              --file-reporter json:build/test-reports/notification-integration.json \
+              || notification_status=$?
+            flutter test integration_test/privacy_android_test.dart \
+              -d emulator-5554 \
+              --reporter expanded \
+              --file-reporter json:build/test-reports/privacy-android-integration.json \
+              || privacy_status=$?
+            if ((notification_status != 0 || privacy_status != 0)); then
+              exit 1
+            fi
+
+      - name: Upload Android integration evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-integration-evidence
+          path: frontend/build/test-reports/
+          if-no-files-found: warn
+          retention-days: 30
