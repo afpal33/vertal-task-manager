@@ -28,6 +28,7 @@ class AppController extends ChangeNotifier {
   List<Task> tasks = [];
   List<LinkRequest> requests = [];
   List<User> users = [];
+  List<Device> devices = [];
 
   Future<void> initialize() async {
     try {
@@ -36,6 +37,7 @@ class AppController extends ChangeNotifier {
       /* Notifications must not block app startup. */
     }
     deviceId = await _store.read(SecureStore.deviceIdKey);
+    _api.deviceId = deviceId;
     publicKey = await _store.read(SecureStore.publicKeyKey);
     final token = await _store.read(SecureStore.tokenKey);
     if (token != null && deviceId != null) {
@@ -57,6 +59,7 @@ class AppController extends ChangeNotifier {
     await _run(() async {
       final credential = await _credential.generate();
       deviceId = 'device-${DateTime.now().millisecondsSinceEpoch}';
+      _api.deviceId = deviceId;
       publicKey = credential.publicKey;
       await _store.write(SecureStore.privateKeyKey, credential.privateKey);
       await _store.write(SecureStore.publicKeyKey, credential.publicKey);
@@ -72,11 +75,17 @@ class AppController extends ChangeNotifier {
   }
 
   void setServer(String value) {
-    serverUrl = value.trim().replaceAll(RegExp(r'/$'), '');
-    _api.baseUrl = serverUrl;
-    _api.token = null;
-    stage = AppStage.link;
-    error = null;
+    final candidate = value.trim().replaceAll(RegExp(r'/$'), '');
+    try {
+      ApiClient.validateBaseUrl(candidate);
+      serverUrl = candidate;
+      _api.baseUrl = serverUrl;
+      _api.token = null;
+      stage = AppStage.link;
+      error = null;
+    } on ApiException catch (exception) {
+      error = exception.message;
+    }
     notifyListeners();
   }
 
@@ -157,6 +166,9 @@ class AppController extends ChangeNotifier {
           .toList();
       users = ((await _api.get('/api/admin/users')) as List)
           .map((e) => User.fromJson(e))
+          .toList();
+      devices = ((await _api.get('/api/admin/devices')) as List)
+          .map((e) => Device.fromJson(e))
           .toList();
     }
     notifyListeners();
@@ -287,6 +299,17 @@ class AppController extends ChangeNotifier {
     await _run(() async {
       await _api.delete('/api/admin/users/${target.id}');
       await refresh();
+    });
+  }
+
+  Future<void> revokeDevice(Device target) async {
+    await _run(() async {
+      await _api.delete('/api/admin/devices/${target.id}');
+      if (target.identifier == deviceId) {
+        await logout();
+      } else {
+        await refresh();
+      }
     });
   }
 

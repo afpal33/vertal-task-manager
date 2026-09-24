@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -63,6 +64,55 @@ class TaskServiceTests {
     }
 
     @Test
+    void teamMemberCanCreateTask() {
+        Instant dueDate = Instant.now().plusSeconds(3600);
+        when(auth.current(1L)).thenReturn(creator);
+        when(equipos.findById(10L)).thenReturn(Optional.of(team));
+        when(tareas.save(any(Tarea.class))).thenAnswer(invocation -> {
+            Tarea saved = invocation.getArgument(0);
+            saved.setId(21L);
+            return saved;
+        });
+
+        TaskResponseDto response = service.create(
+                1L,
+                new TaskRequestDto("Nueva tarea", "Descripción", dueDate, 10L));
+
+        assertEquals(21L, response.id());
+        assertEquals("Nueva tarea", response.titulo());
+        assertEquals(10L, response.equipoId());
+        verify(auth).memberOrManager(creator, team);
+        verify(tareas).save(any(Tarea.class));
+    }
+
+    @Test
+    void memberCanConsultActiveTasks() {
+        when(auth.current(1L)).thenReturn(creator);
+        when(equipos.findAll()).thenReturn(List.of(team));
+        when(auth.isMember(1L, team)).thenReturn(true);
+        when(tareas.findByEquipoIdInAndActivaTrue(List.of(10L))).thenReturn(List.of(task));
+
+        var response = service.list(1L);
+
+        assertEquals(1, response.size());
+        assertEquals(20L, response.get(0).id());
+        assertEquals("Review API", response.get(0).titulo());
+    }
+
+    @Test
+    void memberCanConsultTaskDetails() {
+        when(tareas.findById(20L)).thenReturn(Optional.of(task));
+        when(auth.current(1L)).thenReturn(creator);
+
+        TaskResponseDto response = service.get(1L, 20L);
+
+        assertEquals(20L, response.id());
+        assertEquals("Review API", response.titulo());
+        assertEquals(10L, response.equipoId());
+        verify(auth).memberOrManager(creator, team);
+    }
+
+    @Test
     void assignmentRequiresTeamMemberAndPersistsAssignment() {
         Usuario assignee = user(2L, Rol.USUARIO_NORMAL);
         when(tareas.findById(20L)).thenReturn(Optional.of(task));
@@ -102,6 +152,20 @@ class TaskServiceTests {
     }
 
     @Test
+    void assignedUserCanCompleteTask() {
+        Usuario assignee = user(2L, Rol.USUARIO_NORMAL);
+        when(tareas.findById(20L)).thenReturn(Optional.of(task));
+        when(auth.current(2L)).thenReturn(assignee);
+        when(tareas.save(task)).thenReturn(task);
+
+        TaskResponseDto response = service.complete(2L, 20L);
+
+        assertEquals(EstadoTarea.COMPLETADA, response.estado());
+        verify(auth).assignedOrCreator(assignee, task);
+        verify(tareas).save(task);
+    }
+
+    @Test
     void reminderIsStoredForAuthorizedUser() {
         Usuario assignee = user(2L, Rol.USUARIO_NORMAL);
         when(tareas.findById(20L)).thenReturn(Optional.of(task));
@@ -128,6 +192,37 @@ class TaskServiceTests {
         when(auth.isMember(2L, team)).thenReturn(false);
 
         assertThrows(BadRequestException.class, () -> service.assign(1L, 20L, new AssignmentRequestDto("user-2")));
+    }
+
+    @Test
+    void authorizedUserCanEditTask() {
+        Instant dueDate = Instant.now().plusSeconds(7200);
+        when(tareas.findById(20L)).thenReturn(Optional.of(task));
+        when(auth.current(1L)).thenReturn(creator);
+        when(tareas.save(task)).thenReturn(task);
+
+        TaskResponseDto response = service.update(
+                1L,
+                20L,
+                new TaskRequestDto("Updated task", "Updated description", dueDate, 10L));
+
+        assertEquals("Updated task", response.titulo());
+        assertEquals("Updated description", response.descripcion());
+        assertEquals(dueDate, response.fechaVencimiento());
+        verify(auth).assignedOrCreator(creator, task);
+        verify(tareas).save(task);
+    }
+
+    @Test
+    void authorizedUserCanDeleteTask() {
+        when(tareas.findById(20L)).thenReturn(Optional.of(task));
+        when(auth.current(1L)).thenReturn(creator);
+
+        service.delete(1L, 20L);
+
+        assertFalse(task.isActiva());
+        verify(auth).assignedOrCreator(creator, task);
+        verify(tareas).save(task);
     }
 
     private Usuario user(Long id, Rol role) {

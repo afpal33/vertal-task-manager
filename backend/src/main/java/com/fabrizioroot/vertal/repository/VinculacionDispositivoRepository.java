@@ -6,4 +6,5 @@ import java.util.List;
 public interface VinculacionDispositivoRepository extends JpaRepository<VinculacionDispositivo, Long> {
     Optional<VinculacionDispositivo> findByDispositivoIdentificadorDispositivoAndActivaTrue(String identificador);
     List<VinculacionDispositivo> findByUsuarioIdAndActivaTrue(Long usuarioId);
+    List<VinculacionDispositivo> findByDispositivoIdAndActivaTrue(Long dispositivoId);
 }

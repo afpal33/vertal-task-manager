@@ -57,6 +57,37 @@ class TeamServiceTests {
     }
 
     @Test
+    void memberCanConsultTeamDetails() {
+        when(auth.current(1L)).thenReturn(creator);
+        when(equipos.findById(10L)).thenReturn(Optional.of(team));
+
+        var response = service.get(1L, 10L);
+
+        assertEquals(10L, response.id());
+        assertEquals("Backend", response.nombre());
+        assertEquals(1L, response.creadorId());
+        verify(auth).memberOrManager(creator, team);
+    }
+
+    @Test
+    void creatorCanAddNewMember() {
+        Usuario member = user(2L, Rol.USUARIO_NORMAL);
+        when(auth.current(1L)).thenReturn(creator);
+        when(equipos.findById(10L)).thenReturn(Optional.of(team));
+        when(usuarios.findByNombreUsuario("user-2")).thenReturn(Optional.of(member));
+        when(membresias.existsByUsuarioIdAndEquipoIdAndActivaTrue(2L, 10L)).thenReturn(false);
+        when(membresias.findByUsuarioIdAndEquipoId(2L, 10L)).thenReturn(Optional.empty());
+
+        service.add(1L, 10L, new MemberRequestDto("user-2"));
+
+        verify(auth).managerOrCreator(creator, team);
+        verify(membresias).save(argThat(saved ->
+                saved.isActiva()
+                        && saved.getUsuario() == member
+                        && saved.getEquipo() == team));
+    }
+
+    @Test
     void duplicateMemberIsRejected() {
         Usuario member = user(2L, Rol.USUARIO_NORMAL);
         when(auth.current(1L)).thenReturn(creator);
@@ -70,9 +101,11 @@ class TeamServiceTests {
 
     @Test
     void removeMemberDeactivatesMembership() {
+        Usuario member = user(2L, Rol.USUARIO_NORMAL);
         MembresiaEquipo membership = new MembresiaEquipo();
         when(auth.current(1L)).thenReturn(creator);
         when(equipos.findById(10L)).thenReturn(Optional.of(team));
+        when(usuarios.findByNombreUsuario("user-2")).thenReturn(Optional.of(member));
         when(membresias.findByUsuarioIdAndEquipoId(2L, 10L)).thenReturn(Optional.of(membership));
 
         service.remove(1L, 10L, "user-2");

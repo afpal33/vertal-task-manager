@@ -31,7 +31,7 @@ class AuthServiceTests {
         String publicKey=Base64.getEncoder().encodeToString(pair.getPublic().getEncoded());
         Dispositivo device=new Dispositivo(); device.setIdentificadorDispositivo("device-1"); device.setClavePublicaDispositivo(publicKey); device.setActivo(true); Usuario user=new Usuario(); user.setId(7L); user.setActivo(true); device.setUsuario(user);
         DispositivoRepository devices=mock(DispositivoRepository.class); when(devices.findByIdentificadorDispositivoAndActivoTrue("device-1")).thenReturn(Optional.of(device));
-        JwtService jwt=mock(JwtService.class); when(jwt.createToken(7L)).thenReturn("token");
+        JwtService jwt=mock(JwtService.class); when(jwt.createToken(7L, "device-1")).thenReturn("token");
         AuthService service=new AuthService(mock(OrganizacionRepository.class),mock(SolicitudVinculacionRepository.class),mock(UsuarioRepository.class),devices,mock(VinculacionDispositivoRepository.class),jwt,"server-key", "bootstrap-token");
         ChallengeResponseDto challenge=service.challenge(new ChallengeRequestDto("device-1")); Signature signature=Signature.getInstance("SHA256withRSA"); signature.initSign(pair.getPrivate()); signature.update(challenge.challenge().getBytes()); String signed=Base64.getEncoder().encodeToString(signature.sign());
         assertEquals("token",service.login(new LoginRequestDto(challenge.challengeId(),"device-1",signed)).token());
@@ -72,7 +72,7 @@ class AuthServiceTests {
         OrganizacionRepository organizations = mock(OrganizacionRepository.class); when(organizations.findAll()).thenReturn(java.util.List.of(organization));
         UsuarioRepository users = mock(UsuarioRepository.class); when(users.findByNombreUsuario("admin")).thenReturn(Optional.of(admin)); when(users.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         DispositivoRepository devices = mock(DispositivoRepository.class); when(devices.existsByUsuarioIdAndActivoTrue(7L)).thenReturn(false); when(devices.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        JwtService jwt = mock(JwtService.class); when(jwt.createToken(7L)).thenReturn("jwt");
+        JwtService jwt = mock(JwtService.class); when(jwt.createToken(7L, "admin-device")).thenReturn("jwt");
         AuthService service = new AuthService(organizations, mock(SolicitudVinculacionRepository.class), users, devices, mock(VinculacionDispositivoRepository.class), jwt, "server-key", "bootstrap-token");
 
         LoginResponseDto response = service.bootstrapAdmin(new BootstrapAdminRequestDto("bootstrap-token", "Admin User", "Admin phone", "admin-device", "public-key"));
