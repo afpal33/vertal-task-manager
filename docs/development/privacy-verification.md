@@ -83,3 +83,29 @@ Durante la captura se deben ejecutar, como mínimo, estos flujos:
 
 Al terminar, se detiene el emulador y se analiza `vertal-rnf02.pcap` con Wireshark o `tshark`. El informe debe registrar fecha, versión o commit, servidor configurado, duración, flujos ejecutados y todos los destinos observados. El criterio de conformidad es que el tráfico atribuible a Vertal se dirija únicamente al servidor configurado. El tráfico propio del sistema operativo del emulador debe identificarse por separado y no atribuirse a la aplicación.
 
+## Evidencia generada por integración continua
+
+El trabajo `Android integration tests` de GitHub Actions inicia el emulador con
+la opción `-tcpdump` y guarda automáticamente la captura como
+`vertal-rnf02.pcap`. Durante la captura, el pipeline inicia una instancia real
+del backend con el perfil de pruebas, ejecuta la prueba de privacidad contra
+`http://10.0.2.2:8080` y comprueba que el cliente rechace una URL absoluta de
+terceros. Después de detener el emulador, `tshark` genera el inventario de
+paquetes, la lista de destinos y el informe de ejecución. Estos archivos se
+publican en el artefacto `android-integration-evidence` junto con los resultados
+de las pruebas de integración.
+
+La captura incluye también tráfico producido por el sistema operativo Android.
+Por ello, la lista automática de destinos no demuestra por sí sola que todos
+ellos correspondan al aplicativo: la atribución final debe separar el tráfico
+del sistema y registrar únicamente el asociado a Vertal.
+
+No se genera una segunda captura para el backend. En su funcionamiento normal,
+el backend recibe solicitudes del cliente y se comunica con PostgreSQL dentro
+de la infraestructura administrada. Su verificación de privacidad se realiza
+mediante `BackendPrivacyTests` y el inventario completo de dependencias de
+ejecución generado en `target/privacy/runtime-dependencies.txt`. Esta inspección
+detecta clientes de red y proveedores de telemetría conocidos, pero no permite
+afirmar que una dependencia esté libre de todo comportamiento no documentado;
+esa es la limitación registrada para la evidencia del servidor.
+
