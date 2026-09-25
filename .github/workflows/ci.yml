@@ -35,6 +35,7 @@ jobs:
           path: |
             backend/target/surefire-reports/
             backend/target/evidence/
+            backend/target/privacy/
           if-no-files-found: warn
           retention-days: 30
 
@@ -123,6 +124,9 @@ jobs:
         working-directory: frontend
         run: flutter pub get
 
+      - name: Prepare Android privacy evidence directory
+        run: mkdir -p frontend/build/test-reports
+
       - name: Enable KVM access
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
@@ -132,13 +136,31 @@ jobs:
 
       - name: Run integration tests on Android
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          RNF02_SERVER_URL: http://10.0.2.2:8080
         with:
           api-level: 29
           arch: x86_64
           profile: pixel_2
           disable-animations: true
+          emulator-options: >-
+            -no-window -gpu swiftshader_indirect -no-snapshot -noaudio
+            -no-boot-anim -tcpdump
+            ${{ github.workspace }}/frontend/build/test-reports/vertal-rnf02.pcap
           working-directory: frontend
           script: bash ../scripts/android_integration_tests.sh
+
+      - name: Install packet capture analyzer
+        if: always()
+        run: |
+          sudo apt-get update
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install --yes tshark
+
+      - name: Analyze Android privacy packet capture
+        if: always()
+        env:
+          RNF02_SERVER_URL: http://10.0.2.2:8080
+        run: bash scripts/summarize_rnf02_pcap.sh frontend/build/test-reports/vertal-rnf02.pcap frontend/build/test-reports
 
       - name: Upload Android integration evidence
         if: always()
