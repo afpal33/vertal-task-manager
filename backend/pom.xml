@@ -139,6 +139,24 @@
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>privacy-runtime-dependency-inventory</id>
+						<phase>generate-test-resources</phase>
+						<goals>
+							<goal>list</goal>
+						</goals>
+						<configuration>
+							<includeScope>runtime</includeScope>
+							<outputFile>${project.build.directory}/privacy/runtime-dependencies.txt</outputFile>
+							<appendOutput>false</appendOutput>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<configuration>
 					<annotationProcessorPaths>

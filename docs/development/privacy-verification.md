@@ -1,7 +1,5 @@
 # Verificación de privacidad
 
-Este procedimiento genera evidencia para el requisito RNF02. La afirmación de privacidad no debe sustentarse únicamente en la arquitectura declarada.
-
 ## Controles implementados
 
 - El código Flutter centraliza las peticiones HTTP en `ApiClient`.
@@ -34,7 +32,12 @@ Desde `backend`:
 `BackendPrivacyTests` comprueba que el backend no incorpore proveedores de
 telemetría, no construya clientes de red salientes, no defina ni acepte la
 clave privada del dispositivo y utilice una conexión configurable hacia
-PostgreSQL autogestionado.
+PostgreSQL autogestionado. Antes de ejecutar la prueba, Maven genera en
+`target/privacy/runtime-dependencies.txt` el inventario completo de
+dependencias de ejecución, incluidas las transitivas. La prueba rechaza tanto
+los SDK de telemetría conocidos como cualquier grupo proveedor que no forme
+parte de la lista revisada. Por tanto, la verificación no se limita a leer las
+dependencias directas declaradas en `pom.xml`.
 
 La auditoría conjunta y repetible se ejecuta desde la raíz del repositorio:
 
@@ -80,4 +83,3 @@ Durante la captura se deben ejecutar, como mínimo, estos flujos:
 
 Al terminar, se detiene el emulador y se analiza `vertal-rnf02.pcap` con Wireshark o `tshark`. El informe debe registrar fecha, versión o commit, servidor configurado, duración, flujos ejecutados y todos los destinos observados. El criterio de conformidad es que el tráfico atribuible a Vertal se dirija únicamente al servidor configurado. El tráfico propio del sistema operativo del emulador debe identificarse por separado y no atribuirse a la aplicación.
 
-La captura PCAP y su informe son evidencia de ejecución. Este procedimiento no debe marcarse como conforme hasta que ambos artefactos existan y hayan sido revisados.
