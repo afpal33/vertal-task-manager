@@ -1,7 +1,5 @@
 # Verificación de privacidad
 
-Este procedimiento genera evidencia para el requisito RNF02. La afirmación de privacidad no debe sustentarse únicamente en la arquitectura declarada.
-
 ## Controles implementados
 
 - El código Flutter centraliza las peticiones HTTP en `ApiClient`.
